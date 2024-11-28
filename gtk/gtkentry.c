@@ -5922,6 +5922,12 @@ gtk_entry_backspace (GtkEntry *entry)
 }
 
 static void
+ghostllm_rewrite_text_cb (GtkMenuItem *menuitem, gpointer user_data)
+{
+  g_print("hello from rewrite text callback!!");
+}
+
+static void
 gtk_entry_copy_clipboard (GtkEntry *entry)
 {
   GtkEntryPrivate *priv = entry->priv;
@@ -9601,6 +9607,26 @@ popup_targets_received (GtkClipboard     *clipboard,
                             mode == DISPLAY_NORMAL &&
                             info_entry_priv->current_pos != info_entry_priv->selection_bound);
 
+      // GhostLLM stuff
+      
+      // The root GtkMenuItem that shows "GhostLLM" option on the context menu
+      GtkWidget *ghostllm_root_menuitem = gtk_menu_item_new_with_mnemonic (_("GhostLLM"));
+      gtk_widget_set_sensitive(ghostllm_root_menuitem, info_entry_priv->editable && info_entry_priv->current_pos != info_entry_priv->selection_bound);
+
+      // The GtkMenu widget which holds the LLM menu options.
+      GtkWidget *ghostllm_submenu = gtk_menu_new ();
+      
+      menuitem = gtk_menu_item_new_with_mnemonic (_("_Rewrite Text"));
+
+      g_signal_connect_swapped (menuitem, "activate", G_CALLBACK (ghostllm_rewrite_text_cb), entry);
+      gtk_widget_show (menuitem);
+
+      // Append "Rewrite Text" option into LLM submenu
+      gtk_menu_shell_append (GTK_MENU_SHELL (ghostllm_submenu), menuitem);
+
+      // Set submenu options for GhostLLM root menu item
+      gtk_menu_item_set_submenu ( GTK_MENU_ITEM (ghostllm_root_menuitem), ghostllm_submenu);
+
       append_action_signal (entry, menu, _("_Paste"), "paste-clipboard",
                             info_entry_priv->editable && clipboard_contains_text);
 
@@ -9614,6 +9640,11 @@ popup_targets_received (GtkClipboard     *clipboard,
       menuitem = gtk_separator_menu_item_new ();
       gtk_widget_show (menuitem);
       gtk_menu_shell_append (GTK_MENU_SHELL (menu), menuitem);
+
+      gtk_widget_show(menuitem);
+      gtk_widget_show(ghostllm_root_menuitem);
+      // Append the GhostLLM root GtkMenuItem into GtkEntry's context menu
+      gtk_menu_shell_append (GTK_MENU_SHELL (menu), ghostllm_root_menuitem);
 
       menuitem = gtk_menu_item_new_with_mnemonic (_("Select _All"));
       gtk_widget_set_sensitive (menuitem, gtk_entry_buffer_get_length (info_entry_priv->buffer) > 0);
