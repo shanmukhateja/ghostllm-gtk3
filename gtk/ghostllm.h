@@ -1,0 +1,1 @@
+char* ghostllm_rewrite_text(char* input_str);

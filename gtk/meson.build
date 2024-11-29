@@ -172,6 +172,7 @@ gtk_sources = files(
   'gtkemojichooser.c',
   'gtkemojicompletion.c',
   'gtkentry.c',
+  'ghostllm.c',
   'gtkentrybuffer.c',
   'gtkentrycompletion.c',
   'gtkeventbox.c',

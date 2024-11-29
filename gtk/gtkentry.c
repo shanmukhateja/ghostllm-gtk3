@@ -79,6 +79,8 @@
 
 #include "a11y/gtkentryaccessible.h"
 
+#include "ghostllm.h"
+
 #include "fallback-c89.c"
 
 /**
@@ -5922,9 +5924,33 @@ gtk_entry_backspace (GtkEntry *entry)
 }
 
 static void
-ghostllm_rewrite_text_cb (GtkMenuItem *menuitem, gpointer user_data)
+ghostllm_rewrite_text_cb (GtkEntry *entry)
 {
-  g_print("hello from rewrite text callback!!");
+
+  // Get selection bounds for string
+  GtkEditable *editable = GTK_EDITABLE (entry);
+  gint start, end;
+  gtk_editable_get_selection_bounds (editable, &start, &end);
+
+  // Get selected text from selection bounds
+  gchar *input_str = _gtk_entry_get_display_text (entry, start, end);
+
+  // Rewrite the input string
+  char* response = ghostllm_rewrite_text(input_str);
+
+  if (response == NULL) {
+    g_printerr("Unable to generate GhostLLM response.");
+    return;
+  }
+
+  // HACK: Delete user selected text using "Cut" operation
+  gtk_entry_cut_clipboard(entry);
+
+  // Insert rewritten text
+  gtk_entry_insert_text(editable, response, strlen(response), &start);
+
+  g_free (response);
+
 }
 
 static void
