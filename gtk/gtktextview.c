@@ -61,6 +61,8 @@
 #include "gtkemojichooser.h"
 #include "gtkpango.h"
 
+#include "ghostllm.h"
+
 #include "a11y/gtktextviewaccessibleprivate.h"
 
 /**
@@ -9432,6 +9434,40 @@ gtk_text_view_select_all (GtkWidget *widget,
 }
 
 static void
+ghostllm_rewrite_text_cb (GtkWidget *widget)
+{
+  GtkTextView *text_view = GTK_TEXT_VIEW (widget);
+  GtkTextBuffer *buffer;
+  GtkTextIter start_iter, end_iter;
+
+  buffer = text_view->priv->buffer;
+
+  // Get selection bounds for string
+  gtk_text_buffer_get_selection_bounds (buffer, &start_iter, &end_iter);
+
+  // Get selected text from selection bounds
+  char *input_str = gtk_text_buffer_get_text (buffer, &start_iter, &end_iter, FALSE);
+
+  // Rewrite the input string
+  char* response = ghostllm_rewrite_text(input_str);
+
+  if (response == NULL) {
+    g_printerr("Unable to generate GhostLLM response.");
+    return;
+  }
+
+  // HACK: Delete user selected text using "Cut" operation
+  gtk_text_view_cut_clipboard(text_view);
+
+  // Insert rewritten text
+  gtk_text_view_insert_at_cursor(text_view, response);
+
+  g_free (response);
+
+}
+
+
+static void
 select_all_cb (GtkWidget   *menuitem,
 	       GtkTextView *text_view)
 {
@@ -9547,6 +9583,31 @@ popup_targets_received (GtkClipboard     *clipboard,
       menuitem = gtk_separator_menu_item_new ();
       gtk_widget_show (menuitem);
       gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), menuitem);
+
+      // GhostLLM stuff
+      
+      // The root GtkMenuItem that shows "GhostLLM" option on the context menu
+      GtkWidget *ghostllm_root_menuitem = gtk_menu_item_new_with_mnemonic (_("GhostLLM"));
+      gtk_widget_set_sensitive(ghostllm_root_menuitem, gtk_text_buffer_get_char_count (priv->buffer) > 0);
+
+      // The GtkMenu widget which holds the LLM menu options.
+      GtkWidget *ghostllm_submenu = gtk_menu_new ();
+      
+      menuitem = gtk_menu_item_new_with_mnemonic (_("_Rewrite Text"));
+
+      g_signal_connect_swapped (menuitem, "activate", G_CALLBACK (ghostllm_rewrite_text_cb), text_view);
+      gtk_widget_show (menuitem);
+
+      // Append "Rewrite Text" option into LLM submenu
+      gtk_menu_shell_append (GTK_MENU_SHELL (ghostllm_submenu), menuitem);
+
+      // Set submenu options for GhostLLM root menu item
+      gtk_menu_item_set_submenu ( GTK_MENU_ITEM (ghostllm_root_menuitem), ghostllm_submenu);
+
+      gtk_widget_show(menuitem);
+      gtk_widget_show(ghostllm_root_menuitem);
+      // Append the GhostLLM root GtkMenuItem into GtkEntry's context menu
+      gtk_menu_shell_append (GTK_MENU_SHELL (priv->popup_menu), ghostllm_root_menuitem);
 
       menuitem = gtk_menu_item_new_with_mnemonic (_("Select _All"));
       gtk_widget_set_sensitive (menuitem,
